@@ -1,9 +1,10 @@
 import streamlit as st
 import random
 import time
+from gtts import gTTS
+import base64
 
 st.set_page_config(layout="wide")
-
 
 # ---------------- PARTY CSS ----------------
 st.markdown("""
@@ -11,6 +12,7 @@ st.markdown("""
 
 html, body, [class*="css"] {
     overflow: hidden;
+    background-color: black;
 }
 
 .title {
@@ -67,7 +69,6 @@ html, body, [class*="css"] {
 </style>
 """, unsafe_allow_html=True)
 
-
 # ---------------- Funny lines ----------------
 funny = {
 1:"Start begun",2:"One more",3:"Cup of tea",4:"Knock knock",5:"High five",
@@ -92,184 +93,131 @@ funny = {
 
 # ---------------- Session ----------------
 if "numbers" not in st.session_state:
-    st.session_state.numbers=[]
+    st.session_state.numbers = []
 
 if "called" not in st.session_state:
-    st.session_state.called=[]
+    st.session_state.called = []
 
 if "current" not in st.session_state:
-    st.session_state.current=None
+    st.session_state.current = None
 
 if "auto" not in st.session_state:
-    st.session_state.auto=False
-
+    st.session_state.auto = False
 
 # ---------------- Spell function ----------------
 def spell(n):
 
-    words=["zero","one","two","three","four","five","six","seven","eight","nine"]
+    words = ["zero","one","two","three","four","five","six","seven","eight","nine"]
 
-    if n<10:
+    if n < 10:
         return words[n]
 
-    digits=" ".join(words[int(d)] for d in str(n))
+    digits = " ".join(words[int(d)] for d in str(n))
 
-    tens_words={
-    10:"ten",20:"twenty",30:"thirty",40:"forty",50:"fifty",
-    60:"sixty",70:"seventy",80:"eighty",90:"ninety"
+    tens_words = {
+        10:"ten",20:"twenty",30:"thirty",40:"forty",50:"fifty",
+        60:"sixty",70:"seventy",80:"eighty",90:"ninety"
     }
 
     if n in tens_words:
-        return digits+" "+tens_words[n]
+        return digits + " " + tens_words[n]
 
-    tens=n//10*10
-    ones=n%10
+    tens = n//10*10
+    ones = n%10
 
-    return digits+" "+tens_words[tens]+" "+words[ones]
+    return digits + " " + tens_words[tens] + " " + words[ones]
 
-
-# ---------------- Female voice ----------------
-import streamlit.components.v1 as components
-
+# ---------------- Reliable voice using Google TTS ----------------
 def speak(n):
 
     funny_line = funny[n]
     spelling = spell(n)
 
-    text = f"{funny_line} ... {spelling}"
+    text = f"{funny_line}. {spelling}"
 
-    components.html(f"""
-    <script>
-    const synth = window.speechSynthesis;
+    tts = gTTS(text=text, lang='en', tld='co.in')
+    filename = f"voice_{n}.mp3"
+    tts.save(filename)
 
-    function speakNow() {{
+    with open(filename, "rb") as f:
+        audio_bytes = f.read()
 
-        let voices = synth.getVoices();
+    b64 = base64.b64encode(audio_bytes).decode()
 
-        if (!voices.length) {{
-            setTimeout(speakNow, 100);
-            return;
-        }}
+    audio_html = f"""
+    <audio autoplay>
+    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+    </audio>
+    """
 
-        let female = voices.find(v =>
-            v.name.includes("Samantha") ||
-            v.name.includes("Google UK English Female") ||
-            v.name.includes("Karen") ||
-            v.name.includes("Victoria") ||
-            v.name.includes("Female")
-        ) || voices[0];
-
-        let msg = new SpeechSynthesisUtterance("{text}");
-
-        msg.voice = female;
-        msg.rate = 0.9;
-        msg.pitch = 1.2;
-        msg.volume = 1;
-
-        synth.cancel();
-        synth.speak(msg);
-    }}
-
-    speakNow();
-
-    </script>
-    """, height=0)
-
+    st.markdown(audio_html, unsafe_allow_html=True)
 
 # ---------------- Layout ----------------
-left,right = st.columns([2,1])
+left, right = st.columns([2,1])
 
-# ---------------- LEFT BOARD ----------------
+# ---------------- Board ----------------
 with left:
 
-    board='<div class="board">'
+    board = '<div class="board">'
 
     for i in range(1,91):
 
-        cls="cell"
+        cls = "cell"
 
         if i in st.session_state.called:
-            cls+=" called"
+            cls += " called"
 
-        if i==st.session_state.current:
-            cls+=" current"
+        if i == st.session_state.current:
+            cls += " current"
 
-        board+=f'<div class="{cls}">{i}</div>'
+        board += f'<div class="{cls}">{i}</div>'
 
-    board+='</div>'
+    board += '</div>'
 
-    st.markdown(board,unsafe_allow_html=True)
+    st.markdown(board, unsafe_allow_html=True)
 
-
-# ---------------- RIGHT CONTROL PANEL ----------------
+# ---------------- Controls ----------------
 with right:
 
-    st.markdown('<div class="title">🎉 Tambola Party Mode</div>',unsafe_allow_html=True)
+    st.markdown('<div class="title">🎉 Tambola Party Mode</div>', unsafe_allow_html=True)
 
     if st.session_state.current:
-        st.markdown(f'<div class="big-number">{st.session_state.current}</div>',unsafe_allow_html=True)
-
+        st.markdown(f'<div class="big-number">{st.session_state.current}</div>', unsafe_allow_html=True)
 
     if st.button("START GAME"):
 
-        st.session_state.numbers=list(range(1,91))
+        st.session_state.numbers = list(range(1,91))
         random.shuffle(st.session_state.numbers)
-        st.session_state.called=[]
-        st.session_state.current=None
-
+        st.session_state.called = []
+        st.session_state.current = None
 
     if st.button("NEXT NUMBER (SPACE)"):
 
         if st.session_state.numbers:
 
-            n=st.session_state.numbers.pop(0)
+            n = st.session_state.numbers.pop(0)
 
-            st.session_state.current=n
-
+            st.session_state.current = n
             st.session_state.called.append(n)
 
             speak(n)
 
-
     if st.button("AUTO MODE ON/OFF"):
-
-        st.session_state.auto=not st.session_state.auto
-
+        st.session_state.auto = not st.session_state.auto
 
     if st.button("RESET"):
+        st.session_state.numbers = []
+        st.session_state.called = []
+        st.session_state.current = None
 
-        st.session_state.numbers=[]
-        st.session_state.called=[]
-        st.session_state.current=None
-
-
-# ---------------- SPACEBAR SUPPORT ----------------
-st.markdown("""
-<script>
-
-document.addEventListener('keydown', function(e) {
-
-    if(e.code === 'Space') {
-
-        window.parent.document.querySelector('button[kind="secondary"]').click();
-
-    }
-
-});
-
-</script>
-""", unsafe_allow_html=True)
-
-
-# ---------------- AUTO MODE ----------------
+# ---------------- Auto mode ----------------
 if st.session_state.auto and st.session_state.numbers:
 
     time.sleep(5)
 
-    n=st.session_state.numbers.pop(0)
+    n = st.session_state.numbers.pop(0)
 
-    st.session_state.current=n
-
+    st.session_state.current = n
     st.session_state.called.append(n)
 
     speak(n)
