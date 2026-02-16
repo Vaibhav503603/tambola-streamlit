@@ -144,13 +144,16 @@ def speak(n):
 
     b64 = base64.b64encode(audio_bytes).decode()
 
+    # unique audio id prevents skipping
     audio_html = f"""
-    <audio autoplay>
-    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+    <audio autoplay id="audio_{n}">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
     </audio>
     """
 
-    st.markdown(audio_html, unsafe_allow_html=True)
+    # use empty container to prevent rerun interruption
+    audio_placeholder = st.empty()
+    audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
 # ---------------- Layout ----------------
 left, right = st.columns([2,1])
@@ -221,5 +224,5 @@ if st.session_state.auto and st.session_state.numbers:
     st.session_state.called.append(n)
 
     speak(n)
-
+    time.sleep(4)  # allow audio to finish
     st.rerun()
